@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Website Health Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#111111;
+  --ink-soft:#42484c;
+  --muted:#6e767b;
+  --paper:#F5F7F8;
+  --card:#ffffff;
+  --rule:#dde2e4;
+  --rule-soft:#eceff1;
+  --mint:#A6FFF8;
+  --mint-deep:#0b7f78;
+  --mint-ink:#065a55;
+  --crit:#b8342a;
+  --warn:#9d6708;
+  --info:#6e767b;
+  --good:#14714a;
+  --font:gdsherpa,"gdsherpaVF4 fallback",Figtree,Helvetica,Arial,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--font);background:var(--paper);color:var(--ink);line-height:1.55;font-size:16px}
+.wrap{max-width:900px;margin:0 auto;padding:0 24px}
+
+/* Masthead: dark bar, mint wordmark */
+.mast{
+  position:sticky;top:0;z-index:50;
+  background:rgba(17,17,17,.92);
+  -webkit-backdrop-filter:saturate(180%) blur(14px);
+  backdrop-filter:saturate(180%) blur(14px);
+  color:#fff;
+  box-shadow:inset 0 -1px 0 rgba(166,255,248,.22);
+}
+.mast .wrap{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-block:15px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:1.02rem;letter-spacing:-.025em;color:#fff}
+.by{
+  font-size:.74rem;font-weight:500;letter-spacing:.01em;
+  color:var(--mint);
+  border:1px solid rgba(166,255,248,.32);
+  border-radius:999px;
+  padding:5px 13px;
+  white-space:nowrap;
+}
+
+.hero{padding-block:60px 40px}
+.hero h1{font-weight:800;font-size:clamp(2.1rem,5.8vw,3.35rem);line-height:1.05;letter-spacing:-.035em;max-width:16ch}
+.hero p{margin-top:18px;max-width:58ch;color:var(--ink-soft);font-size:1.07rem}
+
+form{margin-top:30px;display:flex;gap:10px;flex-wrap:wrap}
+.field{flex:1 1 320px;display:flex;align-items:center;background:var(--card);border:1.5px solid var(--rule);border-radius:8px}
+.field:focus-within{border-color:var(--mint-deep);box-shadow:0 0 0 4px rgba(166,255,248,.55)}
+.field .scheme{padding:0 2px 0 15px;color:var(--muted);font-size:.95rem;flex:none}
+input[type=text]{flex:1;border:0;background:transparent;padding:15px 15px 15px 2px;font:inherit;font-size:1rem;color:var(--ink);min-width:0}
+input[type=text]:focus{outline:none}
+button.go{font:inherit;font-weight:700;font-size:1rem;background:var(--ink);color:var(--mint);border:0;border-radius:8px;padding:15px 28px;cursor:pointer;letter-spacing:-.01em}
+button.go:hover{background:var(--mint);color:var(--ink)}
+button.go:disabled{background:var(--muted);color:#fff;cursor:progress}
+button.go:focus-visible,a:focus-visible,input:focus-visible,.actions button:focus-visible{outline:3px solid var(--mint-deep);outline-offset:2px}
+
+.status{margin-top:28px;font-size:.95rem;color:var(--ink-soft);display:none}
+.status.on{display:block}
+.status .bar{height:4px;background:#e2e7e9;border-radius:2px;overflow:hidden;margin-top:10px}
+.status .bar i{display:block;height:100%;width:35%;background:var(--mint-deep);animation:slide 1.15s ease-in-out infinite}
+@keyframes slide{0%{margin-left:-35%}100%{margin-left:100%}}
+@media (prefers-reduced-motion:reduce){.status .bar i{animation:none;width:100%}}
+.error{margin-top:28px;border-left:4px solid var(--crit);padding:12px 0 12px 16px;display:none}
+.error.on{display:block}
+.error strong{display:block;font-weight:700}
+
+#report{display:none;padding-bottom:72px;scroll-margin-top:78px}
+#report.on{display:block}
+.report-head{border-top:3px solid var(--ink);padding-top:22px;margin-top:46px;display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+.report-head h2{font-size:1.55rem;font-weight:800;letter-spacing:-.03em;word-break:break-word}
+.report-head .when{font-size:.85rem;color:var(--muted);margin-top:4px}
+.actions button{font:inherit;font-size:.87rem;background:var(--card);border:1.5px solid var(--rule);border-radius:8px;padding:8px 16px;cursor:pointer;color:var(--ink-soft)}
+.actions button:hover{border-color:var(--mint-deep);color:var(--mint-ink)}
+
+/* Score panel on dark, mint meter */
+.meter{margin-top:28px;background:var(--ink);color:#fff;border-radius:12px;padding:28px 30px}
+.meter-top{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+.meter-score{font-weight:800;font-size:3.8rem;line-height:1;letter-spacing:-.045em;color:var(--mint)}
+.meter-grade{font-weight:700;font-size:1.05rem;color:var(--ink);background:var(--mint);border-radius:6px;padding:4px 12px}
+.meter-verdict{color:#ccd3d6;font-size:1rem;margin-left:auto;text-align:right;max-width:34ch}
+.segs{display:flex;gap:4px;margin-top:22px;height:34px}
+.seg{position:relative;background:#2a2e30;border-radius:4px;overflow:hidden}
+.seg i{position:absolute;inset:0 auto 0 0;background:var(--mint)}
+.seg.low i{background:#ff7a6e}
+.seg.mid i{background:#ffc866}
+.seg-labels{display:flex;gap:4px;margin-top:10px}
+.seg-labels div{font-size:.79rem;color:#9aa2a6;line-height:1.3;padding-right:6px}
+.seg-labels b{display:block;color:#fff;font-weight:700;font-size:.88rem}
+
+.sect{margin-top:44px}
+.sect > h3{font-size:1.14rem;font-weight:700;letter-spacing:-.02em;padding-bottom:10px;border-bottom:2px solid var(--ink)}
+.finding{display:flex;gap:14px;padding:15px 0;border-bottom:1px solid var(--rule-soft)}
+.finding .tick{flex:none;width:5px;border-radius:3px;background:var(--info)}
+.finding.critical .tick{background:var(--crit)}
+.finding.warn .tick{background:var(--warn)}
+.finding .body{flex:1}
+.finding .label{font-weight:700}
+.finding .detail{color:var(--ink-soft);font-size:.94rem;margin-top:2px}
+.finding .area{font-size:.78rem;color:var(--muted);margin-top:5px}
+.clean{padding:16px 0;color:var(--good);font-weight:600}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:0 30px;margin-top:6px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--rule-soft);font-size:.92rem;align-items:baseline}
+.row span:first-child{color:var(--muted)}
+.row span:last-child{text-align:right;font-weight:600;word-break:break-word}
+.row .yes{color:var(--good)}
+.row .no{color:var(--crit)}
+
+.snippet{background:var(--card);border:1px solid var(--rule);border-left:4px solid var(--mint);border-radius:8px;padding:14px 16px;margin-top:12px}
+.snippet .k{font-size:.78rem;color:var(--muted)}
+.snippet .v{margin-top:3px}
+.snippet .v.empty{color:var(--crit);font-style:italic}
+
+.pending{color:var(--muted);font-size:.93rem;padding:14px 0;display:flex;align-items:center;gap:10px}
+.pending .dot{width:8px;height:8px;border-radius:50%;background:var(--mint-deep);animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.pending .dot{animation:none}}
+.psi-scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:14px}
+.psi-score{background:var(--card);border:1.5px solid var(--rule);border-radius:10px;padding:14px 16px;text-align:center}
+.psi-score .n{font-size:2.1rem;font-weight:800;line-height:1.1;letter-spacing:-.03em}
+.psi-score .l{font-size:.8rem;color:var(--muted);margin-top:2px}
+.psi-score.good{border-color:var(--good)}.psi-score.good .n{color:var(--good)}
+.psi-score.mid{border-color:var(--warn)}.psi-score.mid .n{color:var(--warn)}
+.psi-score.bad{border-color:var(--crit)}.psi-score.bad .n{color:var(--crit)}
+.src{font-size:.79rem;color:var(--muted);margin-top:10px}
+.opp li{list-style:none;padding:9px 0;border-bottom:1px solid var(--rule-soft);display:flex;justify-content:space-between;gap:14px;font-size:.92rem}
+.opp .save{color:var(--mint-ink);font-weight:600;flex:none}
+.posts{margin-top:12px}
+.posts li{list-style:none;padding:10px 0;border-bottom:1px solid var(--rule-soft);display:flex;justify-content:space-between;gap:16px;font-size:.93rem}
+.posts time{color:var(--muted);flex:none}
+
+.disclaimer{margin-top:52px;background:var(--card);border:1.5px solid var(--rule);border-top:4px solid var(--ink);padding:22px 24px;border-radius:8px}
+.disclaimer h4{font-size:.98rem;font-weight:700;margin-bottom:10px}
+.disclaimer p{font-size:.845rem;color:var(--ink-soft);line-height:1.62}
+.disclaimer p + p{margin-top:10px}
+
+footer{background:var(--ink);color:#8d9599;padding-block:40px;font-size:.85rem}
+footer .wrap{display:flex;justify-content:space-between;align-items:flex-start;gap:28px;flex-wrap:wrap}
+footer .f-main{max-width:46ch}
+footer .f-title{color:#fff;font-weight:700;font-size:.98rem;letter-spacing:-.02em;margin-bottom:7px}
+footer .f-note{line-height:1.6}
+footer .f-side{display:flex;flex-direction:column;gap:8px;align-items:flex-end;text-align:right}
+footer .f-tag{
+  font-size:.74rem;font-weight:500;color:var(--mint);
+  border:1px solid rgba(166,255,248,.32);border-radius:999px;padding:5px 13px;white-space:nowrap;
+}
+footer .f-fine{font-size:.78rem;color:#70777b;max-width:30ch}
+@media(max-width:620px){
+  footer .f-side{align-items:flex-start;text-align:left}
+}
+
+@media(max-width:620px){
+  .meter{padding:22px 20px}
+  .meter-verdict{margin-left:0;text-align:left}
+  .segs{height:26px}
+  .seg-labels div{font-size:.72rem}
+}
+@media print{
+  body{background:#fff;font-size:12px}
+  .hero,form,.status,.actions,.mast .by,footer{display:none !important}
+  .mast{position:static;background:#fff;color:#000;border-bottom:2px solid #000;box-shadow:none;backdrop-filter:none}
+  .meter{background:#fff;color:#000;border:2px solid #000;border-radius:0}
+  .meter-score{color:#000}
+  .meter-grade{background:#000;color:#fff}
+  .meter-verdict{color:#333}
+  .seg{background:#e5e5e5}.seg i{background:#111}
+  .seg-labels div{color:#555}.seg-labels b{color:#000}
+  #report{padding-bottom:0}
+  .report-head{margin-top:18px}
+  .sect{margin-top:24px;page-break-inside:avoid}
+  .disclaimer{page-break-inside:avoid;margin-top:24px}
+  a{color:inherit;text-decoration:none}
+}
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="wrap">
+    <!-- BRANDING: text wordmark only. Do not add the GoDaddy logo without written brand approval. -->
+    <div class="brand">Website Health Check</div>
+    <div class="by">Independent &middot; Not affiliated with GoDaddy</div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <h1>See what your website looks like to Google.</h1>
+    <p>Enter an address and this will read the page the way a search engine does: what it can understand, how quickly it loads, when the site was last touched, and whether the blog is still running.</p>
+
+    <form id="form">
+      <label class="field" for="url">
+        <span class="scheme">https://</span>
+        <input type="text" id="url" name="url" placeholder="yourbusiness.com" autocomplete="url" spellcheck="false" required>
+      </label>
+      <button class="go" type="submit" id="submit">Run the check</button>
+    </form>
+    
+
+    <div class="status" id="status" role="status" aria-live="polite">
+      <span id="statusText">Reading the page…</span>
+      <div class="bar"><i></i></div>
+    </div>
+    <div class="error" id="error" role="alert"></div>
+  </section>
+
+  <section id="report" aria-live="polite"></section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="f-main">
+      <div class="f-title">Built independently by a GoDaddy employee</div>
+      <div class="f-note">A personal project, created on personal time and outside the scope of employment.</div>
+    </div>
+    <div class="f-side">
+      <span class="f-tag">Not a GoDaddy product</span>
+      <span class="f-fine">Not endorsed, sponsored or approved by GoDaddy Inc.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+const ENDPOINT = '/.netlify/functions/audit';
+const PSI_ENDPOINT = '/.netlify/functions/psi';
+const $ = s => document.querySelector(s);
+const form = $('#form'), input = $('#url'), btn = $('#submit');
+const statusEl = $('#status'), statusText = $('#statusText'), errorEl = $('#error'), report = $('#report');
+
+
+// The server can die mid-request and return nothing. Turn that into a real
+// message instead of a JSON parse error.
+async function readJson(res, label){
+  const text = await res.text();
+  if (!text.trim()){
+    if (res.status === 504 || res.status === 502){
+      throw new Error('That site took too long to respond and the ' + label + ' timed out. Try again, or try the www version of the address.');
+    }
+    if (res.status === 404){
+      throw new Error('The ' + label + ' service is not deployed. Check the Functions tab in Netlify.');
+    }
+    throw new Error('The server closed the connection without responding. This usually means the site is very slow. Try again.');
+  }
+  try { return JSON.parse(text); }
+  catch {
+    throw new Error('The server returned an unexpected response (status ' + res.status + ').');
+  }
+}
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDate = iso => iso ? new Date(iso).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}) : '—';
+const yn = (v, good='Yes', bad='No') =>
+  `<span class="${v?'yes':'no'}">${v?good:bad}</span>`;
+
+let ticker;
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const url = input.value.trim();
+  if (!url) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Scanning…';
+  errorEl.classList.remove('on');
+  report.classList.remove('on');
+  statusEl.classList.add('on');
+
+  const steps = ['Reading the page…','Checking the sitemap…','Looking for a blog feed…','Scoring the results…'];
+  let i = 0;
+  statusText.textContent = steps[0];
+  ticker = setInterval(() => { i = Math.min(i + 1, steps.length - 1); statusText.textContent = steps[i]; }, 2600);
+
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ url })
+    });
+    const data = await readJson(res, 'scan');
+    if (data.error) throw new Error(data.error);
+    render(data);
+    runPerformance(data.finalUrl);
+  } catch (err) {
+    errorEl.innerHTML = `<strong>The check did not finish.</strong>${esc(err.message || 'Something went wrong. Try again.')}`;
+    errorEl.classList.add('on');
+  } finally {
+    clearInterval(ticker);
+    statusEl.classList.remove('on');
+    btn.disabled = false;
+    btn.textContent = 'Run the check';
+  }
+});
+
+function verdict(total){
+  if (total >= 90) return 'In good shape. The fixes below are refinements, not repairs.';
+  if (total >= 80) return 'Solid foundation with a few gaps that are costing visibility.';
+  if (total >= 70) return 'Working, but leaving real search traffic on the table.';
+  if (total >= 55) return 'Several issues are actively holding this site back in search.';
+  return 'This site needs attention. The items below are costing it customers.';
+}
+
+function render(d){
+  const s = d.score, seo = d.seo, ux = d.ux, fr = d.freshness, bl = d.blog;
+  const host = new URL(d.finalUrl).hostname;
+
+  const segs = s.breakdown.map(b => {
+    const pct = Math.round((b.score / b.max) * 100);
+    const cls = pct < 50 ? 'low' : pct < 80 ? 'mid' : '';
+    return {...b, pct, cls};
+  });
+
+  const segBars = segs.map(b =>
+    `<div class="seg ${b.cls}" style="flex:${b.max}" title="${esc(b.area)}: ${b.score} of ${b.max}"><i style="width:${b.pct}%"></i></div>`
+  ).join('');
+  const segLabels = segs.map(b =>
+    `<div style="flex:${b.max}"><b>${b.score}/${b.max}</b>${esc(b.area)}</div>`
+  ).join('');
+
+  const findings = s.findings.length
+    ? s.findings.map(f => `
+      <div class="finding ${f.severity}">
+        <div class="tick"></div>
+        <div class="body">
+          <div class="label">${esc(f.label)}</div>
+          <div class="detail">${esc(f.detail)}</div>
+          <div class="area">${esc(f.area)}</div>
+        </div>
+      </div>`).join('')
+    : `<p class="clean">No issues flagged. That is rare.</p>`;
+
+  const critCount = s.findings.filter(f => f.severity === 'critical').length;
+
+  const posts = bl.recentPosts && bl.recentPosts.length
+    ? `<ul class="posts">${bl.recentPosts.map(p =>
+        `<li><span>${esc(p.title || 'Untitled post')}</span><time>${fmtDate(p.date)}</time></li>`).join('')}</ul>`
+    : '';
+
+  report.innerHTML = `
+  <div class="report-head">
+    <div>
+      <h2>${esc(host)}</h2>
+      <div class="when">Checked ${new Date(d.scannedAt).toLocaleString()} &middot; took ${(d.scanDurationMs/1000).toFixed(1)}s${d.platform.detected.length ? ' &middot; built on ' + esc(d.platform.detected.join(', ')) : ''}</div>
+    </div>
+    <div class="actions">
+      <button onclick="window.print()">Save as PDF</button>
+    </div>
+  </div>
+
+  <div class="meter">
+    <div class="meter-top">
+      <div class="meter-score">${s.total}</div>
+      <div class="meter-grade">Grade ${esc(s.grade)}</div>
+      <div class="meter-verdict">${esc(verdict(s.total))}</div>
+    </div>
+    <div class="segs">${segBars}</div>
+    <div class="seg-labels">${segLabels}</div>
+  </div>
+
+  <div class="sect">
+    <h3>What to fix, most urgent first${critCount ? ` (${critCount} urgent)` : ''}</h3>
+    ${findings}
+  </div>
+
+  <div class="sect">
+    <h3>How search engines see this page</h3>
+    <div class="snippet">
+      <div class="k">Title shown in search results</div>
+      <div class="v ${seo.title ? '' : 'empty'}">${seo.title ? esc(seo.title) : 'Missing'}</div>
+    </div>
+    <div class="snippet">
+      <div class="k">Description shown underneath</div>
+      <div class="v ${seo.description ? '' : 'empty'}">${seo.description ? esc(seo.description) : 'Missing — Google will write its own'}</div>
+    </div>
+    <div class="snippet">
+      <div class="k">Main heading on the page</div>
+      <div class="v ${seo.h1s.length ? '' : 'empty'}">${seo.h1s.length ? esc(seo.h1s[0]) : 'Missing'}</div>
+    </div>
+    <div class="grid" style="margin-top:18px">
+      ${row('Headings (H2 / H3)', `${seo.h2Count} / ${seo.h3Count}`)}
+      ${row('Words of content', seo.wordCount)}
+      ${row('Links on page', `${seo.internalLinks} internal, ${seo.externalLinks} out`)}
+      ${row('Images missing alt text', `${seo.imagesMissingAlt} of ${seo.imageCount}`)}
+      ${row('Structured data', seo.schemaBlocks ? `${seo.schemaBlocks} block(s)` : yn(false,'','None'))}
+      ${row('Canonical tag', seo.canonical ? yn(true) : yn(false))}
+      ${row('Social preview image', seo.ogImage ? yn(true) : yn(false))}
+      ${row('Language set', seo.lang ? esc(seo.lang) : yn(false))}
+      ${row('robots.txt', yn(fr.robotsTxt))}
+      ${row('XML sitemap', yn(fr.sitemapFound))}
+    </div>
+  </div>
+
+  <div class="sect">
+    <h3>Visitor experience</h3>
+    <div class="grid">
+      ${row('Secure (HTTPS)', yn(ux.https))}
+      ${row('Mobile-ready', yn(ux.mobileReady))}
+      ${row('Server response', `${(ux.responseMs/1000).toFixed(2)}s`)}
+      ${row('Page HTML size', `${ux.htmlKb} KB`)}
+      ${row('Redirects before load', ux.redirectHops)}
+      ${row('Scripts / stylesheets', `${ux.scripts} / ${ux.stylesheets}`)}
+      ${row('Lazy-loaded images', `${ux.lazyImages} of ${ux.imageCount}`)}
+      ${row('Modern image formats', ux.modernFormats ? yn(true) : yn(false,'','None'))}
+      ${row('Compression', ux.compression ? esc(ux.compression) : yn(false,'','None'))}
+      ${row('Tap-to-call link', yn(ux.hasTelLink))}
+      ${row('Contact form', yn(ux.forms > 0))}
+      ${row('Security headers', yn(ux.hsts && ux.xContentType, 'Present', 'Incomplete'))}
+    </div>
+  </div>
+
+  <div class="sect">
+    <h3>When was this site last touched?</h3>
+    <div class="grid">
+      ${row('Most recent update', fr.newestLastmod ? fmtDate(fr.newestLastmod) : 'Not published')}
+      ${row('Days since that update', fr.daysSinceAnyUpdate ?? '—')}
+      ${row('Pages in sitemap', fr.pageCount || '—')}
+      ${row('Pages with a date', fr.withLastmod || '—')}
+      ${row('Untouched over a year', fr.staleOverYear || (fr.withLastmod ? '0' : '—'))}
+      ${row('Updated in last 90 days', fr.updatedLast90 || (fr.withLastmod ? '0' : '—'))}
+      ${row('Oldest page date', fr.oldestLastmod ? fmtDate(fr.oldestLastmod) : '—')}
+      ${row('Footer copyright year', fr.copyrightYear || '—')}
+    </div>
+    ${fr.notes.length ? `<p style="margin-top:12px;font-size:.86rem;color:var(--muted)">${esc(fr.notes.join(' '))}</p>` : ''}
+  </div>
+
+  <div class="sect">
+    <h3>Blog activity</h3>
+    <div class="grid">
+      ${row('Blog or feed found', yn(bl.feedFound || !!bl.blogUrlFound))}
+      ${row('Posts detected', bl.postCount || '—')}
+      ${row('Most recent post', bl.latestPostDate ? fmtDate(bl.latestPostDate) : '—')}
+      ${row('Days since last post', bl.daysSinceLastPost ?? '—')}
+      ${row('Posts in last 90 days', bl.postsLast90 ?? '—')}
+      ${row('Posts in last 12 months', bl.postsLast365 ?? '—')}
+      ${row('Typical gap between posts', bl.averageGapDays ? bl.averageGapDays + ' days' : '—')}
+      ${row('Publishing pattern', esc(bl.cadence))}
+    </div>
+    ${posts}
+  </div>
+
+  <div class="sect" id="domainSect"></div>
+
+  <div class="sect" id="psiSect">
+    <h3>Speed and experience, measured by Google</h3>
+    <div class="pending"><span class="dot"></span>Running Google's Lighthouse test. This takes 10 to 30 seconds.</div>
+  </div>
+
+  <div class="disclaimer">
+    <h4>Important: please read before relying on this report</h4>
+
+    <p><strong>This is not a GoDaddy tool.</strong> This Website Health Check is an independent personal project. It was created and is operated solely by its author, who happens to be employed by GoDaddy Inc. but who built and runs this tool entirely on personal time, using personal resources, and outside the scope of their employment. GoDaddy Inc. and its affiliates did not create, commission, review, approve, endorse, sponsor, license or authorize this tool or this report. GoDaddy has no involvement in it and no responsibility for it. No statement, score, finding or recommendation in this report is made by, on behalf of, or attributable to GoDaddy, and nothing here should be read as a GoDaddy assessment, quote, offer, commitment or official communication. The author is not acting as a representative or agent of GoDaddy in providing this report. Any reference to GoDaddy is for identification only. All GoDaddy trademarks, logos and brand names remain the property of their respective owner, and no affiliation, sponsorship or endorsement is claimed or implied.</p>
+
+    <p><strong>The results are automated estimates, not a professional audit.</strong> This tool reads publicly available information from the address you entered at a single moment in time and applies its own scoring. It is informational only. It is not a professional SEO audit, security assessment, accessibility conformance evaluation or compliance review, and it is not legal, financial, technical, regulatory or business advice. The scores and grades are the author's own weighting. They are not produced by, affiliated with, validated by or predictive of Google or any other search engine, and they do not measure, reflect or forecast how any search engine will rank, index or treat a website. No guarantee is made regarding rankings, traffic, conversions, revenue or business outcomes.</p>
+
+    <p><strong>Results may be incomplete or wrong.</strong> Websites that block automated requests, build their content with JavaScript, sit behind a login, firewall or bot protection, or that change after the scan may produce inaccurate or misleading results. Absence of a finding does not mean absence of a problem. This report is provided "as is" and "as available", without warranty of any kind, express or implied, including any implied warranty of accuracy, completeness, merchantability, fitness for a particular purpose or non-infringement. You are solely responsible for independently verifying any finding before acting on it. To the fullest extent permitted by law, the author disclaims all liability for any direct, indirect, incidental, consequential or other loss or damage arising from use of, or reliance on, this tool or this report.</p>
+
+    <p><strong>Permitted use.</strong> Run this tool only on websites you own or have explicit permission to test. You are responsible for ensuring your use complies with applicable law and with the terms of service of any site you scan.</p>
+  </div>
+  `;
+  renderDomain(d.domain);
+  report.classList.add('on');
+  report.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion:reduce)').matches ? 'auto' : 'smooth', block:'start'});
+}
+
+function renderDomain(d){
+  const el = document.getElementById('domainSect');
+  if (!d || !d.queried){ el.remove(); return; }
+  const age = d.ageYears !== null
+    ? (d.ageYears < 1 ? 'Under a year' : d.ageYears + (d.ageYears === 1 ? ' year' : ' years'))
+    : '—';
+  let exp = '—';
+  if (d.daysToExpiry !== null){
+    exp = d.daysToExpiry < 0
+      ? `<span class="no">Expired ${Math.abs(d.daysToExpiry)} days ago</span>`
+      : d.daysToExpiry < 45
+        ? `<span class="no">${fmtDate(d.expires)} (${d.daysToExpiry} days)</span>`
+        : `${fmtDate(d.expires)} (${d.daysToExpiry} days)`;
+  }
+  el.innerHTML = `
+    <h3>Domain registration</h3>
+    <div class="grid">
+      ${row('Domain', esc(d.domain))}
+      ${row('Registrar', d.registrar ? esc(d.registrar) : 'Not published')}
+      ${row('Registered', d.created ? fmtDate(d.created) : '—')}
+      ${row('Domain age', esc(age))}
+      ${row('Expires', exp)}
+      ${row('Privacy protection', d.privacyProtected === null ? '—' : yn(d.privacyProtected, 'On', 'Off'))}
+      ${row('DNSSEC', d.dnssec === null ? '—' : yn(d.dnssec, 'Enabled', 'Off'))}
+      ${row('Nameservers', d.nameservers.length ? esc(d.nameservers.length + ' found') : '—')}
+    </div>
+    <p class="src">Registration data from public RDAP records.</p>`;
+}
+
+function band(n){ return n === null ? '' : n >= 90 ? 'good' : n >= 50 ? 'mid' : 'bad'; }
+
+async function runPerformance(url){
+  const el = document.getElementById('psiSect');
+  if (!el) return;
+  try {
+    const res = await fetch(PSI_ENDPOINT, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ url })
+    });
+    const d = await readJson(res, 'performance check');
+    if (d.error){
+      el.innerHTML = `<h3>Speed and experience, measured by Google</h3>
+        <p class="pending" style="color:var(--crit)">${esc(d.error)}</p>`;
+      return;
+    }
+    const m = d.results.mobile;
+    const sc = m.scores;
+    const cards = [
+      ['Performance', sc.performance],
+      ['Accessibility', sc.accessibility],
+      ['Best practices', sc.bestPractices],
+      ['SEO', sc.seo]
+    ].map(([l,n]) => `<div class="psi-score ${band(n)}"><div class="n">${n===null?'—':n}</div><div class="l">${l}</div></div>`).join('');
+
+    const f = m.field || m.originField;
+    const fieldRows = f ? `
+      <div class="grid" style="margin-top:20px">
+        ${row('Real-user verdict', esc(f.overall || '—'))}
+        ${row('Largest paint (LCP)', f.lcp ? `${f.lcp.value}${f.lcp.unit} <span style="color:var(--muted);font-weight:400">${esc(f.lcp.rating||'')}</span>` : '—')}
+        ${row('Responsiveness (INP)', f.inp ? `${f.inp.value}${f.inp.unit} <span style="color:var(--muted);font-weight:400">${esc(f.inp.rating||'')}</span>` : '—')}
+        ${row('Layout shift (CLS)', f.cls ? `${f.cls.value} <span style="color:var(--muted);font-weight:400">${esc(f.cls.rating||'')}</span>` : '—')}
+      </div>` : '';
+
+    const labRows = `
+      <div class="grid" style="margin-top:20px">
+        ${row('Largest paint', esc(m.lab.lcp || '—'))}
+        ${row('Layout shift', esc(m.lab.cls || '—'))}
+        ${row('Blocking time', esc(m.lab.tbt || '—'))}
+        ${row('First paint', esc(m.lab.fcp || '—'))}
+        ${row('Speed index', esc(m.lab.speedIndex || '—'))}
+      </div>`;
+
+    const opps = m.opportunities.length ? `
+      <h3 style="margin-top:34px">Biggest speed wins</h3>
+      <ul class="opp">${m.opportunities.map(o => {
+        const save = o.savingsMs ? `${(o.savingsMs/1000).toFixed(1)}s` : `${o.savingsKb} KB`;
+        return `<li><span>${esc(o.title)}</span><span class="save">saves ${esc(save)}</span></li>`;
+      }).join('')}</ul>` : '';
+
+    el.innerHTML = `
+      <h3>Speed and experience, measured by Google</h3>
+      <div class="psi-scores">${cards}</div>
+      <p class="src">Scored by Google Lighthouse on a simulated mobile device. 90 and above is good, below 50 is poor.</p>
+      ${f ? `<h3 style="margin-top:34px">What real visitors experienced</h3>${fieldRows}<p class="src">From the Chrome User Experience Report, based on actual Chrome users over the last 28 days. This is the data that feeds Google's page experience signals.</p>` : ''}
+      <h3 style="margin-top:34px">Lab timings</h3>
+      ${labRows}
+      ${opps}`;
+  } catch {
+    el.innerHTML = `<h3>Speed and experience, measured by Google</h3>
+      <p class="pending" style="color:var(--crit)">The performance check could not be completed.</p>`;
+  }
+}
+
+function row(label, value){
+  return `<div class="row"><span>${esc(label)}</span><span>${value}</span></div>`;
+}
+</script>
+</body>
+</html>
